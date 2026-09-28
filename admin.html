@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Privado - Bar Cabrero</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-[#f5ece3] text-gray-800">
+
+    <div id="toast" class="fixed top-4 right-4 z-[100] transform transition-all duration-300 translate-x-[150%] opacity-0 flex items-center bg-white border-l-4 border-green-500 rounded shadow-xl px-4 py-3">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-green-500 text-xl mr-3"></i>
+        <p id="toast-msg" class="text-gray-700 font-medium text-sm"></p>
+    </div>
+
+    <div id="modal-borrar" class="fixed inset-0 bg-gray-900/75 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <i class="fa-solid fa-triangle-exclamation text-red-600 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Eliminar plato</h3>
+            <p class="text-sm text-gray-500 mb-6">¿Seguro que quieres borrar <span id="plato-borrar-nombre" class="font-bold text-gray-800"></span>? Esta acción no se puede deshacer.</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="cerrarModalBorrar()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 transition w-1/2">Cancelar</button>
+                <button id="btn-confirmar-borrar" class="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition w-1/2 shadow-md">Sí, borrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-password" class="fixed inset-0 bg-gray-900/75 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center">
+            <i class="fa-solid fa-key text-3xl text-gray-700 mb-3"></i>
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Cambiar Contraseña</h3>
+            
+            <div class="relative mb-3">
+                <input type="password" id="input-nueva-pass" class="w-full border-2 border-gray-300 rounded-lg p-2 text-center focus:border-[#7A3E3E] outline-none pr-10" placeholder="Nueva contraseña">
+                <button type="button" onclick="togglePasswordVisibility('input-nueva-pass', 'eye-icon-1')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                    <i id="eye-icon-1" class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+            
+            <div class="relative mb-4">
+                <input type="password" id="input-confirmar-pass" class="w-full border-2 border-gray-300 rounded-lg p-2 text-center focus:border-[#7A3E3E] outline-none pr-10" placeholder="Repite la nueva contraseña">
+                <button type="button" onclick="togglePasswordVisibility('input-confirmar-pass', 'eye-icon-2')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                    <i id="eye-icon-2" class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+
+            <div class="flex gap-3 justify-center">
+                <button onclick="cerrarModalPassword()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 transition w-1/2">Cancelar</button>
+                <button onclick="guardarNuevaPassword()" class="bg-[#7A3E3E] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#5a2c2c] transition w-1/2 shadow-md">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-screen" class="fixed inset-0 bg-[#f5ece3] z-50 flex flex-col items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center border-t-4 border-[#7A3E3E]">
+            <i class="fa-solid fa-lock text-5xl text-[#7A3E3E] mb-4"></i>
+            <h2 class="text-3xl font-bold mb-1 text-[#7A3E3E] font-serif">Bar Cabrero</h2>
+            <p class="text-gray-500 text-sm mb-6 font-semibold uppercase tracking-wider">Repostería Lucía</p>
+            
+            <div class="relative mb-2">
+                <input type="password" id="pass-input" class="w-full border-2 border-gray-300 rounded-lg p-3 text-center text-xl focus:border-[#7A3E3E] outline-none transition pr-10" placeholder="Contraseña">
+                <button type="button" onclick="togglePasswordVisibility('pass-input', 'eye-icon-login')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                    <i id="eye-icon-login" class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+            
+            <p id="login-error" class="text-red-500 text-xs font-bold mb-4 opacity-0 transition-opacity">Código incorrecto</p>
+            
+            <button onclick="verificarPassword()" class="w-full bg-[#7A3E3E] text-white font-bold py-3 rounded-lg hover:bg-[#5a2c2c] transition shadow-lg">Entrar al Panel</button>
+            <button onclick="window.location.href='index.html'" class="w-full text-gray-500 font-bold py-3 mt-2 hover:text-[#7A3E3E] transition">Volver a la carta</button>
+        </div>
+    </div>
+
+    <div id="app-content" style="display: none;" class="pb-10">
+        <nav class="bg-[#5c3a21] text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
+            <h1 class="text-xl font-bold"><i class="fa-solid fa-lock mr-2"></i> Gestión - Lucía</h1>
+            <div class="flex gap-2">
+                <button onclick="abrirModalPassword()" class="bg-[#7A3E3E] px-3 py-1 rounded hover:bg-[#5a2c2c] text-sm font-bold shadow" title="Cambiar Contraseña"><i class="fa-solid fa-key"></i></button>
+                <button onclick="window.location.href='index.html'" class="bg-gray-100 text-[#5c3a21] px-3 py-1 rounded hover:bg-white text-sm font-bold shadow"><i class="fa-solid fa-eye"></i> Carta</button>
+            </div>
+        </nav>
+
+        <main class="max-w-6xl mx-auto mt-6 p-4">
+            <div class="bg-white rounded shadow p-6 mb-8 border-t-4 border-green-600">
+                <h2 class="text-lg font-bold mb-4 text-green-700"><i class="fa-solid fa-circle-plus"></i> Añadir Nuevo Plato</h2>
+                <form id="form-nuevo-producto" onsubmit="añadirProducto(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Categoría *</label>
+                        <select id="nuevo-categoria" required class="w-full border border-gray-300 rounded p-2 focus:border-green-600 outline-none bg-gray-50">
+                            <option value="" disabled selected>Elige una...</option>
+                            <option value="ENSALADAS">ENSALADAS</option>
+                            <option value="TAPAS FRÍAS">TAPAS FRÍAS</option>
+                            <option value="ACOMPAÑAMIENTOS">ACOMPAÑAMIENTOS</option>
+                            <option value="CARNES">CARNES</option>
+                            <option value="PESCADO">PESCADO</option>
+                            <option value="PARA LOS MÁS PEQUEÑOS">PARA LOS MÁS PEQUEÑOS</option>
+                            <option value="HAMBURGUESAS">HAMBURGUESAS</option>
+                            <option value="MONTADITOS">MONTADITOS</option>
+                            <option value="BAGUETTES">BAGUETTES</option>
+                            <option value="SÁNDWICHES">SÁNDWICHES</option>
+                            <option value="PIZZAS Y PANINIS">PIZZAS Y PANINIS</option>
+                            <option value="BEBIDAS">BEBIDAS</option>
+                        </select>
+                    </div>
+                    
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Nombre del plato *</label>
+                        <input type="text" id="nuevo-nombre" required class="w-full border border-gray-300 rounded p-2 focus:border-green-600 outline-none bg-gray-50">
+                    </div>
+
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Ingredientes</label>
+                        <input type="text" id="nuevo-descripcion" placeholder="Ej: lechuga, tomate, atún" class="w-full border border-gray-300 rounded p-2 focus:border-green-600 outline-none bg-gray-50 text-sm">
+                    </div>
+
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Alérgenos</label>
+                        <input type="text" id="nuevo-alergenos" placeholder="Ej: Gluten, Huevos" class="w-full border border-gray-300 rounded p-2 focus:border-green-600 outline-none bg-gray-50 text-sm">
+                    </div>
+
+                    <div class="md:col-span-9 flex gap-2 mt-2">
+                        <div class="w-1/4"><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Tapa</label><input type="number" step="0.10" id="nuevo-tapa" class="w-full border border-gray-300 rounded p-2 text-center text-sm"></div>
+                        <div class="w-1/4"><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Media</label><input type="number" step="0.10" id="nuevo-media" class="w-full border border-gray-300 rounded p-2 text-center text-sm"></div>
+                        <div class="w-1/4"><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Ración</label><input type="number" step="0.10" id="nuevo-racion" class="w-full border border-gray-300 rounded p-2 text-center text-sm"></div>
+                        <div class="w-1/4"><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase">Único</label><input type="number" step="0.10" id="nuevo-unico" class="w-full border border-gray-300 rounded p-2 text-center text-sm"></div>
+                    </div>
+                    <div class="md:col-span-3 mt-2">
+                        <label class="block text-[11px] font-bold text-transparent mb-1 uppercase">.</label>
+                        <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700 transition shadow">Añadir Plato</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="panel-productos"><p class="text-center text-[#7A3E3E] my-10 font-bold"><i class="fa-solid fa-spinner fa-spin text-2xl"></i> Cargando la carta...</p></div>
+        </main>
+    </div>
+
+    <script>
+        // CONEXIÓN A LA BASE DE DATOS DE LUCÍA
+        const db = supabase.createClient('https://ygjbyywaojxysjdnglsf.supabase.co', 'sb_publishable_hRhf3LPufyTh1QfCgjl85w_fv350szt');
+
+        // --- UTILIDADES ---
+        let toastTimeout;
+        function mostrarToast(mensaje, tipo = 'exito') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').innerText = mensaje;
+            
+            if(tipo === 'error') {
+                toast.classList.replace('border-green-500', 'border-red-500');
+                icon.className = 'fa-solid fa-circle-xmark text-red-500 text-xl mr-3';
+            } else {
+                toast.classList.replace('border-red-500', 'border-green-500');
+                icon.className = 'fa-solid fa-circle-check text-green-500 text-xl mr-3';
+            }
+
+            toast.classList.remove('translate-x-[150%]', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.classList.add('translate-x-[150%]', 'opacity-0'); }, 3000);
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                input.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+
+        // --- LÓGICA DE LOGIN DESDE BASE DE DATOS ---
+        function comprobarSesion() {
+            if (sessionStorage.getItem('adminLogado') === 'true') {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                cargarProductos();
+            }
+        }
+
+        async function verificarPassword() {
+            const passIntroducida = document.getElementById('pass-input').value;
+            const errorText = document.getElementById('login-error');
+            
+            const { data, error } = await db.from('configuracion_lucia').select('pass_admin').eq('id', 1).single();
+
+            if (data && passIntroducida === data.pass_admin) {
+                sessionStorage.setItem('adminLogado', 'true');
+                errorText.style.opacity = '0';
+                comprobarSesion();
+            } else {
+                errorText.style.opacity = '1';
+                document.getElementById('pass-input').value = '';
+            }
+        }
+
+        document.getElementById('pass-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') verificarPassword();
+        });
+
+        // --- LÓGICA CAMBIAR CONTRASEÑA ---
+        function abrirModalPassword() {
+            document.getElementById('input-nueva-pass').value = '';
+            document.getElementById('input-confirmar-pass').value = '';
+            document.getElementById('input-nueva-pass').type = 'password';
+            document.getElementById('eye-icon-1').className = 'fa-solid fa-eye';
+            document.getElementById('input-confirmar-pass').type = 'password';
+            document.getElementById('eye-icon-2').className = 'fa-solid fa-eye';
+            document.getElementById('modal-password').classList.remove('hidden');
+        }
+
+        function cerrarModalPassword() {
+            document.getElementById('modal-password').classList.add('hidden');
+        }
+
+        async function guardarNuevaPassword() {
+            const nuevaPass = document.getElementById('input-nueva-pass').value;
+            const confirmarPass = document.getElementById('input-confirmar-pass').value;
+
+            if(nuevaPass.trim() === '') {
+                mostrarToast("La contraseña no puede estar vacía", "error");
+                return;
+            }
+            if(nuevaPass !== confirmarPass) {
+                mostrarToast("Las contraseñas no coinciden", "error");
+                return;
+            }
+            
+            const { error } = await db.from('configuracion_lucia').update({ pass_admin: nuevaPass }).eq('id', 1);
+            
+            if(!error) {
+                cerrarModalPassword();
+                mostrarToast("Contraseña cambiada correctamente");
+            } else {
+                mostrarToast("Error al guardar contraseña", "error");
+            }
+        }
+
+        // --- BASE DE DATOS Y PLATOS ---
+        const ordenCategorias = [
+            "ENSALADAS", "TAPAS FRÍAS", "ACOMPAÑAMIENTOS", "CARNES", 
+            "PESCADO", "PARA LOS MÁS PEQUEÑOS", "HAMBURGUESAS", "MONTADITOS", 
+            "BAGUETTES", "SÁNDWICHES", "PIZZAS Y PANINIS", "BEBIDAS"
+        ];
+
+        async function añadirProducto(event) {
+            event.preventDefault();
+            const cat = document.getElementById('nuevo-categoria').value;
+            const nom = document.getElementById('nuevo-nombre').value;
+            const desc = document.getElementById('nuevo-descripcion').value;
+            const aler = document.getElementById('nuevo-alergenos').value;
+            const t = document.getElementById('nuevo-tapa').value;
+            const m = document.getElementById('nuevo-media').value;
+            const r = document.getElementById('nuevo-racion').value;
+            const u = document.getElementById('nuevo-unico').value;
+
+            const { error } = await db.from('productos_lucia').insert([{
+                categoria: cat, nombre: nom,
+                descripcion: desc ? desc : null,
+                alergenos: aler ? aler : null,
+                precio_tapa: t ? parseFloat(t) : null,
+                precio_media: m ? parseFloat(m) : null,
+                precio_racion: r ? parseFloat(r) : null,
+                precio_unico: u ? parseFloat(u) : null,
+                agotado: false
+            }]);
+
+            if (!error) {
+                document.getElementById('form-nuevo-producto').reset();
+                mostrarToast(`Plato añadido correctamente`);
+                cargarProductos();
+            } else mostrarToast("Error al añadir el plato", "error");
+        }
+
+        let productoABorrarId = null;
+        function abrirModalBorrar(id, nombre) {
+            productoABorrarId = id;
+            document.getElementById('plato-borrar-nombre').innerText = `"${nombre}"`;
+            document.getElementById('modal-borrar').classList.remove('hidden');
+        }
+        function cerrarModalBorrar() {
+            productoABorrarId = null;
+            document.getElementById('modal-borrar').classList.add('hidden');
+        }
+
+        document.getElementById('btn-confirmar-borrar').addEventListener('click', async () => {
+            if (productoABorrarId) {
+                const { error } = await db.from('productos_lucia').delete().eq('id', productoABorrarId);
+                cerrarModalBorrar();
+                if (!error) {
+                    mostrarToast("Plato eliminado para siempre");
+                    cargarProductos();
+                } else mostrarToast("Error al borrar", "error");
+            }
+        });
+
+        async function cargarProductos() {
+            const { data, error } = await db.from('productos_lucia').select('*').order('id', { ascending: true });
+            if (error) return;
+
+            const grupos = {};
+            data.forEach(p => {
+                if(!grupos[p.categoria]) grupos[p.categoria] = [];
+                grupos[p.categoria].push(p);
+            });
+
+            let html = '';
+            ordenCategorias.forEach(cat => {
+                if (grupos[cat] && grupos[cat].length > 0) {
+                    html += `<h3 class="text-xl font-bold mt-8 mb-3 bg-[#7A3E3E] text-white p-2 rounded shadow">${cat}</h3>`;
+                    
+                    grupos[cat].forEach(prod => {
+                        let descVal = prod.descripcion || '';
+                        let alerVal = prod.alergenos || '';
+                        
+                        html += `
+                        <div class="bg-white p-4 mb-2 shadow-sm rounded flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-l-4 ${prod.agotado ? 'border-red-500 bg-red-50 opacity-80' : 'border-[#7A3E3E] hover:bg-gray-50 transition'}">
+                            
+                            <div class="flex-1 space-y-2">
+                                <div class="font-bold text-[#5c3a21] text-lg leading-none">${prod.nombre}</div>
+                                <div class="flex gap-2">
+                                    <input type="text" class="border border-gray-300 rounded px-2 py-1 w-full text-sm text-gray-600 bg-white" placeholder="Ingredientes..." value="${descVal}" onchange="actualizarCampoTexto(${prod.id}, 'descripcion', this.value)">
+                                    <input type="text" class="border border-gray-300 rounded px-2 py-1 w-1/3 text-sm text-[#7A3E3E] bg-white" placeholder="Alérgenos..." value="${alerVal}" onchange="actualizarCampoTexto(${prod.id}, 'alergenos', this.value)">
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2 items-center xl:justify-end">
+                                ${prod.precio_tapa !== null ? `<label class="text-xs text-gray-500 flex flex-col items-center">Tapa <input type="number" step="0.10" class="border border-gray-300 rounded px-1 py-1 w-16 text-center font-bold text-black bg-white" value="${prod.precio_tapa}" onchange="actualizarCampoNum(${prod.id}, 'precio_tapa', this.value)"></label>` : ''}
+                                ${prod.precio_media !== null ? `<label class="text-xs text-gray-500 flex flex-col items-center">Media <input type="number" step="0.10" class="border border-gray-300 rounded px-1 py-1 w-16 text-center font-bold text-black bg-white" value="${prod.precio_media}" onchange="actualizarCampoNum(${prod.id}, 'precio_media', this.value)"></label>` : ''}
+                                ${prod.precio_racion !== null ? `<label class="text-xs text-gray-500 flex flex-col items-center">Ración <input type="number" step="0.10" class="border border-gray-300 rounded px-1 py-1 w-16 text-center font-bold text-black bg-white" value="${prod.precio_racion}" onchange="actualizarCampoNum(${prod.id}, 'precio_racion', this.value)"></label>` : ''}
+                                ${prod.precio_unico !== null ? `<label class="text-xs text-gray-500 flex flex-col items-center">Único <input type="number" step="0.10" class="border border-gray-300 rounded px-1 py-1 w-16 text-center font-bold text-black bg-white" value="${prod.precio_unico}" onchange="actualizarCampoNum(${prod.id}, 'precio_unico', this.value)"></label>` : ''}
+                                
+                                <label class="flex items-center gap-2 cursor-pointer bg-red-100 border border-red-200 px-3 py-1.5 rounded hover:bg-red-200 transition ml-2">
+                                    <input type="checkbox" class="w-4 h-4 accent-red-600" onchange="actualizarAgotado(${prod.id}, this.checked)" ${prod.agotado ? 'checked' : ''}>
+                                    <span class="text-red-800 font-bold text-sm">Agotado</span>
+                                </label>
+                                <button onclick="abrirModalBorrar(${prod.id}, '${prod.nombre.replace(/'/g, "\\'")}')" class="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition ml-2 shadow-sm" title="Borrar plato">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>`;
+                    });
+                }
+            });
+            document.getElementById('panel-productos').innerHTML = html;
+        }
+
+        async function actualizarCampoNum(id, campo, valor) {
+            const { error } = await db.from('productos_lucia').update({ [campo]: valor === '' ? null : parseFloat(valor) }).eq('id', id);
+            if (error) mostrarToast("Error al guardar precio", "error");
+        }
+
+        async function actualizarCampoTexto(id, campo, valor) {
+            const { error } = await db.from('productos_lucia').update({ [campo]: valor.trim() === '' ? null : valor.trim() }).eq('id', id);
+            if (!error) {
+                mostrarToast("Texto guardado");
+            } else {
+                mostrarToast("Error al guardar texto", "error");
+            }
+        }
+
+        async function actualizarAgotado(id, estaAgotado) {
+            const { error } = await db.from('productos_lucia').update({ agotado: estaAgotado }).eq('id', id);
+            if (error) mostrarToast("Error al actualizar estado", "error");
+        }
+        
+        comprobarSesion();
+    </script>
+</body>
+</html>
